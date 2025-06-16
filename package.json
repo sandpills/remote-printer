@@ -10,6 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "mqtt": "^5.13.1"
+    "express": "^5.1.0",
+    "mqtt": "^5.13.1",
+    "socket.io": "^4.8.1"
   }
 }
