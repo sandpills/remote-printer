@@ -11,6 +11,11 @@ const PRESENCE_TOPIC = `presence/${FRIEND_NAME}`;
 const MY_PRESENCE_TOPIC = `presence/${MY_NAME}`;
 const ASCII_RECEIEVE = `ascii/${MY_NAME}`
 
+const HEARTBEAT_INTERVAL = 5000; // 5 seconds
+const PRESENCE_TIMEOUT = 10000; // 10 seconds
+let heartbeatTimer = null;
+let presenceTimeout = null;
+
 // ==== UI SETUP ====
 const screen = blessed.screen({
     smartCSR: true,
@@ -72,16 +77,18 @@ const client = mqtt.connect(BROKER_URL);
 client.on('connect', () => {
     log.add('{green-fg}✓ Connected to MQTT{/green-fg}');
     client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
-        // log.add(`✓ Subscribed to ${SUB_TOPIC}`);
-        // log.add(`✓ Tracking ${PRESENCE_TOPIC}`);
         screen.render();
     });
 
-    // Broadcast presence
-    client.publish(MY_PRESENCE_TOPIC, 'online', { retain: true });
+    // Heartbeat presence
+    function sendHeartbeat() {
+        client.publish(MY_PRESENCE_TOPIC, 'online', { retain: true });
+    }
+    heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+    sendHeartbeat(); // send immediately
+
     const selfStatus = `♥︎ ${MY_NAME} is online`;
     log.add(selfStatus);
-
     screen.render();
 });
 
@@ -89,12 +96,14 @@ client.on('message', (topic, message) => {
     const msg = message.toString();
 
     if (topic === PRESENCE_TOPIC) {
-        //debug presence
-        // log.add(`RECEIVED PRESENCE: "${message.toString()}"`);
-        // updateStatus(message.toString().trim());
-        // return;
-
         updateStatus(msg.trim());
+        // Heartbeat timeout logic
+        if (presenceTimeout) clearTimeout(presenceTimeout);
+        if (msg.trim() === 'online') {
+            presenceTimeout = setTimeout(() => {
+                updateStatus('offline');
+            }, PRESENCE_TIMEOUT);
+        }
         return;
     }
 
@@ -128,6 +137,7 @@ input.on('submit', (text) => {
 
     // to quit
     if (trimmed === 'exit') {
+        clearInterval(heartbeatTimer);
         client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
             client.end();
             process.exit(0);
@@ -149,7 +159,7 @@ input.on('submit', (text) => {
         screen.render();
 
         const { exec } = require('child_process');
-        exec(`python3 ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
+        exec(`python3 terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             if (err) {
                 log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
                 log.add(stderr);
@@ -181,18 +191,15 @@ input.on('submit', (text) => {
 
 // ==== QUIT ==== -- this doesn't work
 screen.key(['q', 'C-c'], () => {
-    client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true }, () => {
+    clearInterval(heartbeatTimer);
+    client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
         client.end();
         process.exit(0);
     });
 });
 
-
-
 // ==== PRESENCE UI ====
 function updateStatus(status) {
-    // log.add(`(presence update from topic: ${PRESENCE_TOPIC} → "${status.trim()}")`);
-
     isOnline = status.trim() === 'online';
     log.setLabel(` ⸜(｡˃ ᵕ ˂ )⸝ chat with ${FRIEND_NAME} `);
 
