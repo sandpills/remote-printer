@@ -18,7 +18,7 @@ os.makedirs(CAPTURE_DIR, exist_ok=True)
 
 def capture_image():
     # Try to use the default camera first
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         # If default camera fails, try to find any available camera
         for i in range(10):
