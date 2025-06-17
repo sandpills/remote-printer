@@ -34,7 +34,7 @@ pip install opencv-python pillow numpy paho-mqtt
 node terminal/chat-nyc.js
 
 # Start the Shanghai side:
-node terminal/chat-shanghai.js
+node terminal/chat-sh.js
 ```
 
 - Type to chat, enter to send
