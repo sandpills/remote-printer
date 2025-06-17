@@ -9,6 +9,7 @@ const SUB_TOPIC = `messages/${MY_NAME}`;
 const PUB_TOPIC = `messages/${FRIEND_NAME}`;
 const PRESENCE_TOPIC = `presence/${FRIEND_NAME}`;
 const MY_PRESENCE_TOPIC = `presence/${MY_NAME}`;
+const ASCII_RECEIEVE = `ascii/${MY_NAME}`
 
 // ==== UI SETUP ====
 const screen = blessed.screen({
@@ -70,7 +71,7 @@ const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
     log.add('{green-fg}✓ Connected to MQTT{/green-fg}');
-    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC], () => {
+    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
         // log.add(`✓ Subscribed to ${SUB_TOPIC}`);
         // log.add(`✓ Tracking ${PRESENCE_TOPIC}`);
         screen.render();
@@ -97,6 +98,13 @@ client.on('message', (topic, message) => {
         return;
     }
 
+    if (topic === ASCII_RECEIEVE) {
+        log.add(`{magenta-fg}[ASCII image received from ${FRIEND_NAME}]{/magenta-fg}`);
+        log.add(msg); // already string
+        screen.render();
+        return;
+    }
+
     // Existing message handling
     try {
         const data = JSON.parse(msg);
@@ -118,13 +126,35 @@ client.on('error', (err) => {
 input.on('submit', (text) => {
     const trimmed = text.trim().toLowerCase();
 
+    // to quit
     if (trimmed === 'exit') {
-        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
+        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true }, () => {
             client.end();
             process.exit(0);
         });
         return;
-    } // type exit to QUIT?????
+    }
+
+    // to take photo
+    if (trimmed === '/p') {
+        log.add('{yellow-fg}Capturing ASCII image...{/yellow-fg}');
+        screen.render();
+
+        const { exec } = require('child_process');
+        exec('python3 ascii-cam-sender.py', (err, stdout, stderr) => {
+            if (err) {
+                log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
+                log.add(stderr);
+            } else {
+                log.add('{green-fg}✓ ASCII image captured and sent{/green-fg}');
+            }
+            screen.render();
+        });
+
+        input.clearValue();
+        input.focus();
+        return;
+    }
 
     const now = new Date().toLocaleString();
     const msg = {
