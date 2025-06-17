@@ -37,6 +37,6 @@ node terminal/chat-nyc.js
 node terminal/chat-shanghai.js
 ```
 
-Type to chat, enter to send
-send "exit" to quit
-send "/p" to capture an image and send over to the other side as ASCII
+- Type to chat, enter to send
+- Type and send "exit" to quit
+- Type and send "/p" to capture an image and send over to the other side as ASCII (only available when both are online)
