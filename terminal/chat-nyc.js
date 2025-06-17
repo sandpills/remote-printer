@@ -1,0 +1,164 @@
+const mqtt = require('mqtt');
+const blessed = require('blessed');
+
+// ==== CONFIG ====
+const MY_NAME = 'nyc-boshi';              // ← your device name
+const FRIEND_NAME = 'shanghai-cedar';     // ← other party
+const BROKER_URL = 'mqtt://test.mosquitto.org';
+const SUB_TOPIC = `messages/${MY_NAME}`;
+const PUB_TOPIC = `messages/${FRIEND_NAME}`;
+const PRESENCE_TOPIC = `presence/${FRIEND_NAME}`;
+const MY_PRESENCE_TOPIC = `presence/${MY_NAME}`;
+
+// ==== UI SETUP ====
+const screen = blessed.screen({
+    smartCSR: true,
+    title: `MQTT Chat — ${MY_NAME}`,
+});
+
+let isOnline = false;
+
+const presenceBox = blessed.box({
+    top: 0,
+    left: 0,
+    width: '80%',
+    height: 1,
+    content: '', // will be filled dynamically
+    tags: true,
+    style: {
+        fg: 'yellow'
+        // bg: 'black',
+    },
+});
+
+const log = blessed.log({
+    top: 1, // shift one down
+    left: 0,
+    width: '100%',
+    height: '90%',
+    label: '', // ← leave empty initially
+    border: 'line',
+    scrollable: true,
+    alwaysScroll: true,
+    tags: true,
+    keys: true,
+    vi: true,
+    mouse: true,
+    scrollbar: { style: { bg: 'yellow' } },
+});
+
+const input = blessed.textbox({
+    bottom: 0,
+    height: 3,
+    width: '100%',
+    border: 'line',
+    label: ' Type your message | Send "exit" to quit ',
+    inputOnFocus: true,
+    style: {
+        focus: { border: { fg: 'green' } },
+    },
+});
+
+screen.append(presenceBox);
+screen.append(log);
+screen.append(input);
+input.focus(); // focus on input after setup
+screen.render();
+
+// ==== MQTT CONNECTION ====
+const client = mqtt.connect(BROKER_URL);
+
+client.on('connect', () => {
+    log.add('{green-fg}✓ Connected to MQTT{/green-fg}');
+    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC], () => {
+        // log.add(`✓ Subscribed to ${SUB_TOPIC}`);
+        // log.add(`✓ Tracking ${PRESENCE_TOPIC}`);
+        screen.render();
+    });
+
+    // Broadcast presence
+    client.publish(MY_PRESENCE_TOPIC, 'online', { retain: true });
+    const selfStatus = `♥︎ ${MY_NAME} is online`;
+    log.add(selfStatus);
+
+    screen.render();
+});
+
+client.on('message', (topic, message) => {
+    const msg = message.toString();
+
+    if (topic === PRESENCE_TOPIC) {
+        //debug presence
+        // log.add(`RECEIVED PRESENCE: "${message.toString()}"`);
+        // updateStatus(message.toString().trim());
+        // return;
+
+        updateStatus(msg.trim());
+        return;
+    }
+
+    // Existing message handling
+    try {
+        const data = JSON.parse(msg);
+        const ts = data.time || new Date().toLocaleString();
+        log.add(`{gray-fg}[${ts}]{/gray-fg} {cyan-fg}⇠ ${data.from}:{/cyan-fg} ${data.text}`);
+    } catch (err) {
+        log.add(`{red-fg}✖ Invalid message:{/red-fg} ${msg}`);
+    }
+
+    screen.render();
+});
+
+client.on('error', (err) => {
+    log.add(`{red-fg}✖ MQTT error:{/red-fg} ${err.message}`);
+    screen.render();
+});
+
+// ==== SENDING ====
+input.on('submit', (text) => {
+    const trimmed = text.trim().toLowerCase();
+
+    if (trimmed === 'exit') {
+        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
+            client.end();
+            process.exit(0);
+        });
+        return;
+    } // type exit to QUIT?????
+
+    const now = new Date().toLocaleString();
+    const msg = {
+        from: MY_NAME,
+        to: FRIEND_NAME,
+        text: text.trim(),
+        time: now,
+    };
+
+    client.publish(PUB_TOPIC, JSON.stringify(msg));
+    log.add(`{gray-fg}[${now}]{/gray-fg} {green-fg}⇢ you:{/green-fg} ${msg.text}`);
+    input.clearValue();
+    input.focus();
+    screen.render();
+});
+
+// ==== QUIT ==== -- this doesn't work
+screen.key(['q', 'C-c'], () => {
+    client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true }, () => {
+        client.end();
+        process.exit(0);
+    });
+});
+
+
+
+// ==== PRESENCE UI ====
+function updateStatus(status) {
+    // log.add(`(presence update from topic: ${PRESENCE_TOPIC} → "${status.trim()}")`);
+
+    isOnline = status.trim() === 'online';
+    log.setLabel(` ⸜(｡˃ ᵕ ˂ )⸝ chat with ${FRIEND_NAME} `);
+
+    const symbol = isOnline ? '♥︎' : '♡';
+    presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online`);
+    screen.render(); // force full UI redraw
+}

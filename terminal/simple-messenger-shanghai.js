@@ -17,6 +17,7 @@ const client = mqtt.connect('mqtt://test.mosquitto.org');
 const MY_NAME = 'shanghai-cedar';  // Change this!
 const FRIEND_NAME = 'nyc-boshi';  // Your friend changes this!
 
+
 // When connected
 client.on('connect', () => {
     console.log('✓ Connected to MQTT broker!');
@@ -26,6 +27,7 @@ client.on('connect', () => {
     console.log('Type a message and press Enter to send:');
     console.log('(Type "exit" to quit)');
     console.log('=====================================');
+    client.publish('presence/shanghai-cedar', 'online', { retain: true });
 
     // Subscribe to messages FOR YOU
     client.subscribe(`messages/${MY_NAME}`);
@@ -59,9 +61,15 @@ function sendMessage(text) {
 // Handle typing
 rl.on('line', (input) => {
     if (input.toLowerCase() === 'exit') {
-        console.log('Goodbye!');
-        process.exit(0);
-    }
+        console.log('✖ Going offline...');
+
+        client.publish('presence/shanghai-cedar', 'offline', { retain: true, qos: 1 }, () => {
+            client.end();
+            process.exit(0);
+        });
+
+        return;
+    } // log off
 
     sendMessage(input);
 });
