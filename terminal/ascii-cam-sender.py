@@ -8,9 +8,9 @@ import sys
 
 # ========= CONFIG =========
 BROKER = "test.mosquitto.org"
-SIZE = (40, 40)
+SIZE = (60, 30)  # Wider and shorter for better aspect ratio
 CAPTURE_DIR = "captures"
-ASCII_CHARS = "█▒@%#*+=-:. "
+ASCII_CHARS = "█▓▒@%#*+=-:. "
 
 os.makedirs(CAPTURE_DIR, exist_ok=True)
 
@@ -48,9 +48,16 @@ def capture_image():
     # Apply some basic image processing
     frame = cv2.convertScaleAbs(frame, alpha=1.2, beta=10)  # Increase contrast and brightness
 
+    # Crop to center square for saving
+    height, width = frame.shape[:2]
+    side = min(height, width)
+    start_x = (width - side) // 2
+    start_y = (height - side) // 2
+    square_frame = frame[start_y:start_y+side, start_x:start_x+side]
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     image_path = os.path.join(CAPTURE_DIR, f'webcam_{timestamp}.jpg')
-    cv2.imwrite(image_path, frame)
+    cv2.imwrite(image_path, square_frame)
     return True, image_path
 
 def image_to_ascii(image_path, size=SIZE):

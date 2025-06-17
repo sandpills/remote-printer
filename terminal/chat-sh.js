@@ -56,7 +56,7 @@ const input = blessed.textbox({
     label: ' Type your message | Send "exit" to quit ',
     inputOnFocus: true,
     style: {
-        focus: { border: { fg: 'green' } },
+        focus: { border: { fg: 'yellow' } },
     },
 });
 
@@ -137,6 +137,14 @@ input.on('submit', (text) => {
 
     // to take photo
     if (trimmed === '/p') {
+        if (!isOnline) {
+            log.add('{red-fg}✖ Cannot send image: friend is offline{/red-fg}');
+            screen.render();
+            input.clearValue();
+            input.focus();
+            return;
+        }
+
         log.add('{yellow-fg}Capturing ASCII image...{/yellow-fg}');
         screen.render();
 
