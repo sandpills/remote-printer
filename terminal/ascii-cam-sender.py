@@ -4,16 +4,13 @@ import numpy as np
 import os
 from datetime import datetime
 import paho.mqtt.publish as publish
+import sys
 
 # ========= CONFIG =========
 BROKER = "test.mosquitto.org"
-SENDER = "nyc-boshi"
-RECIPIENT = "shanghai-cedar"
-TOPIC = f"ascii/{RECIPIENT}"
 SIZE = (40, 40)
 CAPTURE_DIR = "captures"
 ASCII_CHARS = "█▒@%#*+=-:. "
-# ASCII_CHARS = "█▓▒░:. "
 
 os.makedirs(CAPTURE_DIR, exist_ok=True)
 
@@ -80,6 +77,16 @@ def image_to_ascii(image_path, size=SIZE):
 # ========= MAIN =========
 
 if __name__ == '__main__':
+    # Get sender and recipient from command line arguments
+    if len(sys.argv) != 3:
+        print("Usage: python3 ascii-cam-sender.py <sender> <recipient>")
+        print("Example: python3 ascii-cam-sender.py nyc-boshi shanghai-cedar")
+        sys.exit(1)
+
+    SENDER = sys.argv[1]
+    RECIPIENT = sys.argv[2]
+    TOPIC = f"ascii/{RECIPIENT}"
+
     success, result = capture_image()
     if not success:
         print("❌", result)

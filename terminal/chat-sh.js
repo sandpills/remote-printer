@@ -128,7 +128,7 @@ input.on('submit', (text) => {
 
     // to quit
     if (trimmed === 'exit') {
-        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true }, () => {
+        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
             client.end();
             process.exit(0);
         });
@@ -141,7 +141,7 @@ input.on('submit', (text) => {
         screen.render();
 
         const { exec } = require('child_process');
-        exec('python3 ascii-cam-sender.py', (err, stdout, stderr) => {
+        exec(`python3 ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             if (err) {
                 log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
                 log.add(stderr);

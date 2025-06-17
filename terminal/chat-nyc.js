@@ -9,6 +9,7 @@ const SUB_TOPIC = `messages/${MY_NAME}`;
 const PUB_TOPIC = `messages/${FRIEND_NAME}`;
 const PRESENCE_TOPIC = `presence/${FRIEND_NAME}`;
 const MY_PRESENCE_TOPIC = `presence/${MY_NAME}`;
+const ASCII_RECEIEVE = `ascii/${MY_NAME}`;
 
 // ==== UI SETUP ====
 const screen = blessed.screen({
@@ -70,7 +71,7 @@ const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
     log.add('{green-fg}✓ Connected to MQTT{/green-fg}');
-    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC], () => {
+    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
         // log.add(`✓ Subscribed to ${SUB_TOPIC}`);
         // log.add(`✓ Tracking ${PRESENCE_TOPIC}`);
         screen.render();
@@ -88,12 +89,14 @@ client.on('message', (topic, message) => {
     const msg = message.toString();
 
     if (topic === PRESENCE_TOPIC) {
-        //debug presence
-        // log.add(`RECEIVED PRESENCE: "${message.toString()}"`);
-        // updateStatus(message.toString().trim());
-        // return;
-
         updateStatus(msg.trim());
+        return;
+    }
+
+    if (topic === ASCII_RECEIEVE) {
+        log.add(`{magenta-fg}[ASCII image received from ${FRIEND_NAME}]{/magenta-fg}`);
+        log.add(msg); // already string
+        screen.render();
         return;
     }
 
@@ -120,7 +123,7 @@ input.on('submit', (text) => {
 
     // to quit
     if (trimmed === 'exit') {
-        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true }, () => {
+        client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
             client.end();
             process.exit(0);
         });
@@ -133,7 +136,7 @@ input.on('submit', (text) => {
         screen.render();
 
         const { exec } = require('child_process');
-        exec('python3 ascii-cam-sender.py', (err, stdout, stderr) => {
+        exec(`python3 ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             if (err) {
                 log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
                 log.add(stderr);
@@ -147,7 +150,6 @@ input.on('submit', (text) => {
         input.focus();
         return;
     }
-
 
     const now = new Date().toLocaleString();
     const msg = {
@@ -166,13 +168,11 @@ input.on('submit', (text) => {
 
 // ==== QUIT ==== -- this doesn't work
 screen.key(['q', 'C-c'], () => {
-    client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true }, () => {
+    client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
         client.end();
         process.exit(0);
     });
 });
-
-
 
 // ==== PRESENCE UI ====
 function updateStatus(status) {
