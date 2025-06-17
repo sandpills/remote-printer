@@ -119,5 +119,6 @@ if __name__ == '__main__':
         retain=False
     )
 
-    print(f"✓ ASCII image sent to topic: {TOPIC}")
-    print(f"✓ ASCII saved to: {ascii_path}")
+    print(ascii_art)  # Only ASCII art to stdout
+    print(f"\n✓ ASCII image sent to topic: {TOPIC}", file=sys.stderr)
+    print(f"✓ ASCII saved to: {ascii_path}", file=sys.stderr)

@@ -92,8 +92,13 @@ client.on('connect', () => {
     screen.render();
 });
 
+function getTimeString() {
+    return new Date().toLocaleString('en-US', { hour12: true });
+}
+
 client.on('message', (topic, message) => {
     const msg = message.toString();
+    const now = getTimeString();
 
     if (topic === PRESENCE_TOPIC) {
         updateStatus(msg.trim());
@@ -108,8 +113,9 @@ client.on('message', (topic, message) => {
     }
 
     if (topic === ASCII_RECEIEVE) {
-        log.add(`{magenta-fg}[ASCII image received from ${FRIEND_NAME}]{/magenta-fg}`);
-        log.add(msg); // already string
+        process.stdout.write('\x07'); // play bell sound
+        log.add(`{gray-fg}[${now}]{/gray-fg} {cyan-fg}⇠ ${FRIEND_NAME}:{/cyan-fg} sent an ASCII image`);
+        log.add(msg); // ASCII art
         screen.render();
         return;
     }
@@ -117,8 +123,12 @@ client.on('message', (topic, message) => {
     // Existing message handling
     try {
         const data = JSON.parse(msg);
-        const ts = data.time || new Date().toLocaleString();
-        log.add(`{gray-fg}[${ts}]{/gray-fg} {cyan-fg}⇠ ${data.from}:{/cyan-fg} ${data.text}`);
+        process.stdout.write('\x07'); // play bell sound
+        const ts = data.time || now;
+        const isMe = data.from === MY_NAME;
+        const nameColor = isMe ? 'green-fg' : 'cyan-fg';
+        const arrow = isMe ? '⇢ you:' : `⇠ ${data.from}:`;
+        log.add(`{gray-fg}[${ts}]{/gray-fg} {${nameColor}}${arrow}{/${nameColor}} ${data.text}`);
     } catch (err) {
         log.add(`{red-fg}✖ Invalid message:{/red-fg} ${msg}`);
     }
@@ -160,10 +170,15 @@ input.on('submit', (text) => {
 
         const { exec } = require('child_process');
         exec(`python3 terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
+            const now = getTimeString();
             if (err) {
                 log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
                 log.add(stderr);
             } else {
+                log.add(`{gray-fg}[${now}]{/gray-fg} {green-fg}⇢ you:{/green-fg} sent an ASCII image`);
+                if (stdout && stdout.trim()) {
+                    log.add(stdout.trim());
+                }
                 log.add('{green-fg}✓ ASCII image captured and sent{/green-fg}');
             }
             screen.render();
@@ -174,7 +189,7 @@ input.on('submit', (text) => {
         return;
     }
 
-    const now = new Date().toLocaleString();
+    const now = getTimeString();
     const msg = {
         from: MY_NAME,
         to: FRIEND_NAME,
@@ -202,10 +217,15 @@ screen.key(['q', 'C-c'], () => {
 function updateStatus(status) {
     // log.add(`(presence update from topic: ${PRESENCE_TOPIC} → "${status.trim()}")`);
 
+    const wasOnline = isOnline;
+
     isOnline = status.trim() === 'online';
     log.setLabel(` ⸜(｡˃ ᵕ ˂ )⸝ chat with ${FRIEND_NAME} `);
 
     const symbol = isOnline ? '♥︎' : '♡';
     presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online`);
+    if (isOnline && !wasOnline) {
+        process.stdout.write('\x07'); // play bell sound when friend comes online
+    }
     screen.render(); // force full UI redraw
 }
