@@ -18,7 +18,7 @@ os.makedirs(CAPTURE_DIR, exist_ok=True)
 
 def capture_image():
     # Try to use the default camera first
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         # If default camera fails, try to find any available camera
         for i in range(10):
@@ -70,8 +70,8 @@ def image_to_ascii(image_path, size=SIZE):
     gamma = 1.5
     pixels = np.power(pixels / 255.0, 1/gamma) * 255.0
     # Normalize to full range
-    pixels = (pixels - pixels.min()) / (pixels.ptp() + 1e-5)
-    pixels = (pixels * 255).astype(np.uint8)
+    pixels = (pixels - pixels.min()) / (np.ptp(pixels) + 1e-5)
+    pixels = (pixels * 255).astype(np.uint32)
     img = Image.fromarray(pixels)
     ascii_img = ""
     for row in np.array(img):

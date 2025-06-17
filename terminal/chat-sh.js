@@ -159,7 +159,7 @@ input.on('submit', (text) => {
         screen.render();
 
         const { exec } = require('child_process');
-        exec(`python3 terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
+        exec(`uv run terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             if (err) {
                 log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
                 log.add(stderr);
