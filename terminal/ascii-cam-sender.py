@@ -5,10 +5,12 @@ import os
 from datetime import datetime
 import paho.mqtt.publish as publish
 import sys
+import base64
+import json
 
 # ========= CONFIG =========
 BROKER = "test.mosquitto.org"
-SIZE = (60, 30)  # Wider and shorter for better aspect ratio
+SIZE = (80, 40)  # slightly bigger? lol
 CAPTURE_DIR = "captures"
 ASCII_CHARS = "█▓▒@%#*+=-:. "
 
@@ -81,44 +83,85 @@ def image_to_ascii(image_path, size=SIZE):
 
     return ascii_img
 
+# ========= base64 decode =========
+
+def image_to_base64(image_path):
+    """Convert image file to base64 string"""
+    with open(image_path, 'rb') as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+    return encoded_string
+
+def send_dual_image(sender, recipient, image_path):
+    """Send both ASCII (for terminal) and base64 image (for printer)"""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Generate ASCII for terminal display
+    ascii_art = image_to_ascii(image_path)
+    
+    # Convert image to base64 for printer
+    image_base64 = image_to_base64(image_path)
+    
+    # Send ASCII version to terminal (existing topic)
+    ascii_topic = f"ascii/{recipient}"
+    ascii_payload = f"[ascii image from {sender} @ {timestamp}]\n{ascii_art}"
+    
+    publish.single(
+        ascii_topic,
+        payload=ascii_payload,
+        hostname=BROKER,
+        qos=1,
+        retain=False
+    )
+    
+    # Send actual image for printer (new topic)
+    image_topic = f"images/{recipient}"
+    image_payload = {
+        "from": sender,
+        "timestamp": timestamp,
+        "filename": os.path.basename(image_path),
+        "type": "image",
+        "data": image_base64
+    }
+    
+    publish.single(
+        image_topic,
+        payload=json.dumps(image_payload),
+        hostname=BROKER,
+        qos=1,
+        retain=False
+    )
+    
+    return ascii_art, len(image_base64)
+
 # ========= MAIN =========
 
 if __name__ == '__main__':
-    # Get sender and recipient from command line arguments
     if len(sys.argv) != 3:
-        print("Usage: python3 ascii-cam-sender.py <sender> <recipient>")
-        print("Example: python3 ascii-cam-sender.py nyc-boshi shanghai-cedar")
+        print("Usage: python3 ascii-cam-sender-enhanced.py <sender> <recipient>")
+        print("Example: python3 ascii-cam-sender-enhanced.py nyc-boshi shanghai-cedar")
         sys.exit(1)
 
     SENDER = sys.argv[1]
     RECIPIENT = sys.argv[2]
-    TOPIC = f"ascii/{RECIPIENT}"
 
     success, result = capture_image()
     if not success:
         print("❌", result)
         exit()
 
-    ascii_art = image_to_ascii(result)
+    ascii_art, base64_size = send_dual_image(SENDER, RECIPIENT, result)
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Embed metadata
-    payload = f"[ascii image from {SENDER} @ {timestamp}]\n{ascii_art}"
-
-    # Save to local file
+# Save locally
     ascii_path = os.path.join(CAPTURE_DIR, f"ascii_{SENDER}_{timestamp.replace(' ', '_').replace(':','-')}.txt")
     with open(ascii_path, 'w') as f:
-        f.write(payload)
+        f.write(f"[ascii image from {SENDER} @ {timestamp}]\n{ascii_art}")
 
-    # Publish over MQTT
-    publish.single(
-        TOPIC,
-        payload=payload,
-        hostname=BROKER,
-        qos=1,
-        retain=False
-    )
-
-    print(ascii_art)  # Only ASCII art to stdout
-    print(f"\n✓ ASCII image sent to topic: {TOPIC}", file=sys.stderr)
-    print(f"✓ ASCII saved to: {ascii_path}", file=sys.stderr)
+    # Output ASCII art to console (for sender to see)
+    print(ascii_art)  # Display ASCII in sender's console
+    
+    # Status messages to stderr so they don't interfere with ASCII display
+    print(f"\n✓ Dual image sent:", file=sys.stderr)
+    print(f"  📺 ASCII to: ascii/{RECIPIENT}", file=sys.stderr)
+    print(f"  🖨️ Image to: images/{RECIPIENT} ({base64_size} bytes)", file=sys.stderr)
+    print(f"✓ Saved locally: {ascii_path}", file=sys.stderr)
