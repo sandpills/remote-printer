@@ -2,3 +2,4 @@ captures
 .python-version
 node_modules
 .DS_Store
+experiments
