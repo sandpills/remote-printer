@@ -18,6 +18,7 @@ const symbols = {
     offline: isBasicTerminal ? ':(' : '♡',
     printerOn: isBasicTerminal ? '[P]' : '✓',
     printerOff: isBasicTerminal ? '[ ]' : '✘',
+    kaomoji: isBasicTerminal ? 'q(//> w <//)p' : '⸜(｡> ᵕ < )⸝'
 };
 
 // ==== CONFIG ====
@@ -99,7 +100,7 @@ const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
     log.add(`{${palette.online}}✓ Connected to MQTT{/}`);
-    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
+    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEIVE], () => {
         screen.render();
     });
 
@@ -285,11 +286,15 @@ function updateStatus(status) {
     const wasOnline = isOnline;
 
     isOnline = status.trim() === 'online';
-    log.setLabel(` ⸜(｡> ᵕ < )⸝ chat with ${FRIEND_NAME} `);
+    log.setLabel(`q(//> w <//)p chat with ${FRIEND_NAME} `);
 
     const symbol = isOnline ? symbols.online : symbols.offline;
     const printerSymbol = printerEnabled ? symbols.printerOn : symbols.printerOff;
-    presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online    ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`);
+    const myStatus = isOnline ? symbols.online : symbols.offline;
+    const friendStatus = isOnline ? symbols.online : symbols.offline;
+    presenceBox.setContent(
+        ` ${friendStatus} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ${myStatus} {bold}${MY_NAME}{/bold} is online    ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`
+    );
     if (isOnline && !wasOnline) {
         process.stdout.write('\x07'); // play bell sound when friend comes online
     }
