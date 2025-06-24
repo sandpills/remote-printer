@@ -63,7 +63,7 @@ const input = blessed.textbox({
     height: 3,
     width: '100%',
     border: 'line',
-    label: ' Type message | /p: photo | /printer: toggle | /help: help ',
+    label: ' Type message to send | /p: take photo | /help: help ',
     inputOnFocus: true,
     style: {
         focus: { border: { fg: 'yellow' } },
@@ -270,7 +270,7 @@ function updateStatus(status) {
     log.setLabel(` ⸜(｡> ᵕ < )⸝ chat with ${FRIEND_NAME} `);
 
     const symbol = isOnline ? '♥︎' : '♡';
-    const printerSymbol = printerEnabled ? '☑︎' : '☒';
+    const printerSymbol = printerEnabled ? '✓' : '✘';
     presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online    ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`);
     if (isOnline && !wasOnline) {
         process.stdout.write('\x07'); // play bell sound when friend comes online
@@ -286,7 +286,7 @@ function startPrinterPortal() {
         return;
     }
 
-    log.add('{yellow-fg}🖨️ Starting printer portal...{/yellow-fg}');
+    log.add('{yellow-fg}⇣ Starting printer portal...{/yellow-fg}');
     screen.render();
 
     // Start the printer portal as a background process
@@ -312,7 +312,7 @@ function startPrinterPortal() {
     });
 
     printerProcess.on('close', (code) => {
-        log.add(`{yellow-fg}🖨️ Printer portal stopped (code: ${code}){/yellow-fg}`);
+        log.add(`{yellow-fg}⇣ Printer portal stopped (code: ${code}){/yellow-fg}`);
         printerProcess = null;
         printerEnabled = false;
         updateStatus(isOnline ? 'online' : 'offline'); // refresh display
@@ -334,7 +334,7 @@ function startPrinterPortal() {
 
 function cleanupPrinter() {
     if (printerProcess) {
-        log.add('{yellow-fg}🖨️ Stopping printer portal...{/yellow-fg}');
+        log.add('{yellow-fg}⌁ Stopping printer portal...{/yellow-fg}');
         printerProcess.kill('SIGTERM');
         printerProcess = null;
         printerEnabled = false;

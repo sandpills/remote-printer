@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import paho.mqtt.client as mqtt
 import json
 import subprocess
@@ -8,6 +10,7 @@ import tempfile
 import os
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
+from paho.mqtt.client import CallbackAPIVersion
 
 # ========= CONFIG =========
 MY_NAME = 'nyc-boshi'
@@ -26,7 +29,7 @@ HEARTBEAT_INTERVAL = 5  # seconds
 
 class PrinterPortal:
     def __init__(self):
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(protocol=mqtt.MQTTv311)
         self.is_online = False
         
         # Setup MQTT callbacks
