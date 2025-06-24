@@ -100,7 +100,7 @@ const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
     log.add(`{${palette.online}}✓ Connected to MQTT{/}`);
-    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEIVE], () => {
+    client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
         screen.render();
     });
 
