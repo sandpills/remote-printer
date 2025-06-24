@@ -58,7 +58,7 @@ const input = blessed.textbox({
     height: 3,
     width: '100%',
     border: 'line',
-    label: ' Type your message | Send "exit" to quit ',
+    label: ' Type your message | Send "/p" to take photo ',
     inputOnFocus: true,
     style: {
         focus: { border: { fg: 'yellow' } },
