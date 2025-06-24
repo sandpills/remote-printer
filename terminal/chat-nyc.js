@@ -2,6 +2,24 @@ const mqtt = require('mqtt');
 const blessed = require('blessed');
 const { spawn } = require('child_process');
 
+// ==== TERMINAL PALETTE & SYMBOLS ====
+const isBasicTerminal = ['linux', 'xterm', 'vt100'].includes(process.env.TERM);
+const palette = {
+    online: 'green',
+    offline: 'red',
+    info: 'cyan',
+    warning: 'yellow',
+    error: 'magenta',
+    self: 'white',
+    friend: 'blue',
+};
+const symbols = {
+    online: isBasicTerminal ? ':)' : '♥︎',
+    offline: isBasicTerminal ? ':(' : '♡',
+    printerOn: isBasicTerminal ? '[P]' : '✓',
+    printerOff: isBasicTerminal ? '[ ]' : '✘',
+};
+
 // ==== CONFIG ====
 const MY_NAME = 'nyc-boshi';              // ← your device name
 const FRIEND_NAME = 'shanghai-cedar';     // ← other party
@@ -80,7 +98,7 @@ screen.render();
 const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
-    log.add('{green-fg}✓ Connected to MQTT{/green-fg}');
+    log.add(`{${palette.online}}✓ Connected to MQTT{/}`);
     client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
         screen.render();
     });
@@ -92,7 +110,7 @@ client.on('connect', () => {
     heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
     sendHeartbeat(); // send immediately
 
-    const selfStatus = `♥︎ ${MY_NAME} is online`;
+    const selfStatus = `{${palette.self}}${symbols.online} ${MY_NAME} is online{/}`;
     log.add(selfStatus);
     screen.render();
 });
@@ -119,7 +137,7 @@ client.on('message', (topic, message) => {
 
     if (topic === ASCII_RECEIEVE) {
         process.stdout.write('\x07'); // play bell sound
-        log.add(`{gray-fg}[${now}]{/gray-fg} {cyan-fg}⇠ ${FRIEND_NAME}:{/cyan-fg} sent an ASCII image`);
+        log.add(`{${palette.info}}[${now}] ⇠ ${FRIEND_NAME}: sent an ASCII image{/}`);
         log.add(msg); // ASCII art
         screen.render();
         return;
@@ -131,18 +149,18 @@ client.on('message', (topic, message) => {
         process.stdout.write('\x07'); // play bell sound
         const ts = data.time || now;
         const isMe = data.from === MY_NAME;
-        const nameColor = isMe ? 'green-fg' : 'cyan-fg';
+        const nameColor = isMe ? palette.self : palette.friend;
         const arrow = isMe ? '⇢ you:' : `⇠ ${data.from}:`;
-        log.add(`{gray-fg}[${ts}]{/gray-fg} {${nameColor}}${arrow}{/${nameColor}} ${data.text}`);
+        log.add(`{${palette.info}}[${ts}]{/} {${nameColor}}${arrow}{/} ${data.text}`);
     } catch (err) {
-        log.add(`{red-fg}✖ Invalid message:{/red-fg} ${msg}`);
+        log.add(`{${palette.error}}✖ Invalid message: ${msg}{/}`);
     }
 
     screen.render();
 });
 
 client.on('error', (err) => {
-    log.add(`{red-fg}✖ MQTT error:{/red-fg} ${err.message}`);
+    log.add(`{${palette.error}}✖ MQTT error: ${err.message}{/}`);
     screen.render();
 });
 
@@ -164,28 +182,28 @@ input.on('submit', (text) => {
     // to take photo
     if (trimmed === '/p') {
         if (!isOnline) {
-            log.add('{red-fg}✖ Cannot send image: friend is offline{/red-fg}');
+            log.add(`{${palette.error}}✖ Cannot send image: friend is offline{/}`);
             screen.render();
             input.clearValue();
             input.focus();
             return;
         }
 
-        log.add('{yellow-fg}Capturing ASCII image...{/yellow-fg}');
+        log.add(`{${palette.warning}}Capturing ASCII image...{/}`);
         screen.render();
 
         const { exec } = require('child_process');
         exec(`python3 terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             const now = getTimeString();
             if (err) {
-                log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
+                log.add(`{${palette.error}}✖ Failed to capture/send image{/}`);
                 log.add(stderr);
             } else {
-                log.add(`{gray-fg}[${now}]{/gray-fg} {green-fg}⇢ you:{/green-fg} sent an ASCII image`);
+                log.add(`{${palette.info}}[${now}] ⇢ you: sent an ASCII image{/}`);
                 if (stdout && stdout.trim()) {
                     log.add(stdout.trim());
                 }
-                log.add('{green-fg}✓ ASCII image captured and sent{/green-fg}');
+                log.add(`{${palette.online}}✓ ASCII image captured and sent{/}`);
             }
             screen.render();
         });
@@ -214,7 +232,7 @@ input.on('submit', (text) => {
     // to check printer status
     if (trimmed === '/status') {
         const printerStatus = printerEnabled ? 'on' : 'off';
-        log.add(`{cyan-fg}✶ Printer status: {/cyan-fg}${printerStatus}`);
+        log.add(`{${palette.info}}✶ Printer status: ${printerStatus}{/}`);
         screen.render();
         input.clearValue();
         input.focus();
@@ -223,7 +241,7 @@ input.on('submit', (text) => {
 
     // to show help
     if (trimmed === '/help') {
-        log.add(`{cyan-fg}✶ Available Commands:{/cyan-fg}`);
+        log.add(`{${palette.info}}✶ Available Commands:{/}`);
         log.add(`  /p - Take and send photo`);
         log.add(`  /printer - Toggle printer on/off`);
         log.add(`  /status - Check printer status`);
@@ -244,7 +262,7 @@ input.on('submit', (text) => {
     };
 
     client.publish(PUB_TOPIC, JSON.stringify(msg));
-    log.add(`{gray-fg}[${now}]{/gray-fg} {green-fg}⇢ you:{/green-fg} ${msg.text}`);
+    log.add(`{${palette.self}}[${now}] ⇢ you: ${msg.text}{/}`);
     input.clearValue();
     input.focus();
     screen.render();
@@ -269,8 +287,8 @@ function updateStatus(status) {
     isOnline = status.trim() === 'online';
     log.setLabel(` ⸜(｡> ᵕ < )⸝ chat with ${FRIEND_NAME} `);
 
-    const symbol = isOnline ? '♥︎' : '♡';
-    const printerSymbol = printerEnabled ? '✓' : '✘';
+    const symbol = isOnline ? symbols.online : symbols.offline;
+    const printerSymbol = printerEnabled ? symbols.printerOn : symbols.printerOff;
     presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online    ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`);
     if (isOnline && !wasOnline) {
         process.stdout.write('\x07'); // play bell sound when friend comes online
