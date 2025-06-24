@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 MY_NAME = 'nyc-boshi'
 FRIEND_NAME = 'shanghai-cedar'
 BROKER = "test.mosquitto.org"
-PRINTER_NAME = 'HPPrinter'
+PRINTER_NAME = 'ITPBigPrinter'
 
 # Topics
 MESSAGE_TOPIC = f"messages/{MY_NAME}"

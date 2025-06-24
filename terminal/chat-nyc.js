@@ -1,5 +1,6 @@
 const mqtt = require('mqtt');
 const blessed = require('blessed');
+const { spawn } = require('child_process');
 
 // ==== CONFIG ====
 const MY_NAME = 'nyc-boshi';              // ← your device name
@@ -15,6 +16,10 @@ const HEARTBEAT_INTERVAL = 5000; // 5 seconds
 const PRESENCE_TIMEOUT = 10000; // 10 seconds
 let heartbeatTimer = null;
 let presenceTimeout = null;
+
+// ==== PRINTER STATE ====
+let printerEnabled = false;
+let printerProcess = null;
 
 // ==== UI SETUP ====
 const screen = blessed.screen({
@@ -58,7 +63,7 @@ const input = blessed.textbox({
     height: 3,
     width: '100%',
     border: 'line',
-    label: ' Type your message | Send "/p" to take photo ',
+    label: ' Type message | /p: photo | /printer: toggle | /help: help ',
     inputOnFocus: true,
     style: {
         focus: { border: { fg: 'yellow' } },
@@ -147,6 +152,7 @@ input.on('submit', (text) => {
 
     // to quit
     if (trimmed === 'exit') {
+        cleanupPrinter();
         clearInterval(heartbeatTimer);
         client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
             client.end();
@@ -189,6 +195,46 @@ input.on('submit', (text) => {
         return;
     }
 
+    // to toggle printer
+    if (trimmed === '/printer') {
+        if (printerProcess) {
+            // If portal is running, stop it
+            cleanupPrinter();
+            printerEnabled = false;
+        } else {
+            // If portal is not running, start it
+            startPrinterPortal();
+            printerEnabled = true;
+        }
+        input.clearValue();
+        input.focus();
+        return;
+    }
+
+    // to check printer status
+    if (trimmed === '/status') {
+        const printerStatus = printerEnabled ? 'on' : 'off';
+        log.add(`{cyan-fg}✶ Printer status: {/cyan-fg}${printerStatus}`);
+        screen.render();
+        input.clearValue();
+        input.focus();
+        return;
+    }
+
+    // to show help
+    if (trimmed === '/help') {
+        log.add(`{cyan-fg}✶ Available Commands:{/cyan-fg}`);
+        log.add(`  /p - Take and send photo`);
+        log.add(`  /printer - Toggle printer on/off`);
+        log.add(`  /status - Check printer status`);
+        log.add(`  /help - Show this help message`);
+        log.add(`  exit - Quit the application`);
+        screen.render();
+        input.clearValue();
+        input.focus();
+        return;
+    }
+
     const now = getTimeString();
     const msg = {
         from: MY_NAME,
@@ -206,6 +252,7 @@ input.on('submit', (text) => {
 
 // ==== QUIT ==== -- this doesn't work
 screen.key(['q', 'C-c'], () => {
+    cleanupPrinter();
     clearInterval(heartbeatTimer);
     client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
         client.end();
@@ -220,12 +267,77 @@ function updateStatus(status) {
     const wasOnline = isOnline;
 
     isOnline = status.trim() === 'online';
-    log.setLabel(` ⸜(｡˃ ᵕ ˂ )⸝ chat with ${FRIEND_NAME} `);
+    log.setLabel(` ⸜(｡> ᵕ < )⸝ chat with ${FRIEND_NAME} `);
 
     const symbol = isOnline ? '♥︎' : '♡';
-    presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online`);
+    const printerSymbol = printerEnabled ? '☑︎' : '☒';
+    presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online    ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`);
     if (isOnline && !wasOnline) {
         process.stdout.write('\x07'); // play bell sound when friend comes online
     }
     screen.render(); // force full UI redraw
+}
+
+// ==== PRINTER FUNCTIONS ====
+function startPrinterPortal() {
+    if (printerProcess) {
+        log.add('{red-fg}✖ Printer portal already running{/red-fg}');
+        screen.render();
+        return;
+    }
+
+    log.add('{yellow-fg}🖨️ Starting printer portal...{/yellow-fg}');
+    screen.render();
+
+    // Start the printer portal as a background process
+    printerProcess = spawn('python3', ['nyc-printer-portal.py'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        detached: false
+    });
+
+    printerProcess.stdout.on('data', (data) => {
+        const output = data.toString().trim();
+        if (output) {
+            log.add(`{cyan-fg}[Printer] {/cyan-fg}${output}`);
+            screen.render();
+        }
+    });
+
+    printerProcess.stderr.on('data', (data) => {
+        const error = data.toString().trim();
+        if (error) {
+            log.add(`{red-fg}[Printer Error] {/red-fg}${error}`);
+            screen.render();
+        }
+    });
+
+    printerProcess.on('close', (code) => {
+        log.add(`{yellow-fg}🖨️ Printer portal stopped (code: ${code}){/yellow-fg}`);
+        printerProcess = null;
+        printerEnabled = false;
+        updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+        screen.render();
+    });
+
+    printerProcess.on('error', (err) => {
+        log.add(`{red-fg}✖ Printer portal error: {/red-fg}${err.message}`);
+        printerProcess = null;
+        printerEnabled = false;
+        updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+        screen.render();
+    });
+
+    // Set printer as enabled when portal starts
+    printerEnabled = true;
+    updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+}
+
+function cleanupPrinter() {
+    if (printerProcess) {
+        log.add('{yellow-fg}🖨️ Stopping printer portal...{/yellow-fg}');
+        printerProcess.kill('SIGTERM');
+        printerProcess = null;
+        printerEnabled = false;
+        updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+    }
 }
