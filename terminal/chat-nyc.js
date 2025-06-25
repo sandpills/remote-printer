@@ -5,13 +5,12 @@ const { spawn } = require('child_process');
 // ==== TERMINAL PALETTE & SYMBOLS ====
 const isBasicTerminal = ['linux', 'xterm', 'vt100'].includes(process.env.TERM);
 const palette = {
-    online: 'green',
-    offline: 'red',
-    info: 'cyan',
-    warning: 'yellow',
-    error: 'magenta',
-    self: 'white',
-    friend: 'blue',
+    online: 'green-fg',
+    offline: 'magenta-fg',
+    info: isBasicTerminal ? 'yellow-fg' : 'gray-fg',
+    warning: 'magenta-fg',
+    error: 'magenta-fg',
+    self: isBasicTerminal ? 'white-fg' : 'cyan-fg'
 };
 const symbols = {
     online: isBasicTerminal ? ':)' : '♥︎',
@@ -99,7 +98,7 @@ screen.render();
 const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
-    log.add(`{${palette.online}}✓ Connected to MQTT{/}`);
+    log.add('{green-fg}✓ Connected to MQTT{/}');
     client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
         screen.render();
     });
@@ -170,7 +169,7 @@ input.on('submit', (text) => {
     const trimmed = text.trim().toLowerCase();
 
     // to quit
-    if (trimmed === 'exit') {
+    if (trimmed === '/exit') {
         cleanupPrinter();
         clearInterval(heartbeatTimer);
         client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
@@ -247,7 +246,7 @@ input.on('submit', (text) => {
         log.add(`  /printer - Toggle printer on/off`);
         log.add(`  /status - Check printer status`);
         log.add(`  /help - Show this help message`);
-        log.add(`  exit - Quit the application`);
+        log.add(`  /exit - Quit the application`);
         screen.render();
         input.clearValue();
         input.focus();
@@ -304,12 +303,12 @@ function updateStatus(status) {
 // ==== PRINTER FUNCTIONS ====
 function startPrinterPortal() {
     if (printerProcess) {
-        log.add('{red-fg}✖ Printer portal already running{/red-fg}');
+        log.add(`{${palette.error}}✖ Printer portal already running{/}`);
         screen.render();
         return;
     }
 
-    log.add('{yellow-fg}⇣ Starting printer portal...{/yellow-fg}');
+    log.add(`{${palette.warning}}⇣ Starting printer portal...{/}`);
     screen.render();
 
     // Start the printer portal as a background process
@@ -321,7 +320,7 @@ function startPrinterPortal() {
     printerProcess.stdout.on('data', (data) => {
         const output = data.toString().trim();
         if (output) {
-            log.add(`{cyan-fg}[Printer] {/cyan-fg}${output}`);
+            log.add(`{${palette.info}}[Printer] ${output}{/}`);
             screen.render();
         }
     });
@@ -329,13 +328,13 @@ function startPrinterPortal() {
     printerProcess.stderr.on('data', (data) => {
         const error = data.toString().trim();
         if (error) {
-            log.add(`{red-fg}[Printer Error] {/red-fg}${error}`);
+            log.add(`{${palette.error}}[Printer Error] ${error}{/}`);
             screen.render();
         }
     });
 
     printerProcess.on('close', (code) => {
-        log.add(`{yellow-fg}⇣ Printer portal stopped (code: ${code}){/yellow-fg}`);
+        log.add(`{${palette.warning}}⇣ Printer portal stopped (code: ${code}){/}`);
         printerProcess = null;
         printerEnabled = false;
         updateStatus(isOnline ? 'online' : 'offline'); // refresh display
@@ -343,7 +342,7 @@ function startPrinterPortal() {
     });
 
     printerProcess.on('error', (err) => {
-        log.add(`{red-fg}✖ Printer portal error: {/red-fg}${err.message}`);
+        log.add(`{${palette.error}}✖ Printer portal error: ${err.message}{/}`);
         printerProcess = null;
         printerEnabled = false;
         updateStatus(isOnline ? 'online' : 'offline'); // refresh display
@@ -357,7 +356,7 @@ function startPrinterPortal() {
 
 function cleanupPrinter() {
     if (printerProcess) {
-        log.add('{yellow-fg}⌁ Stopping printer portal...{/yellow-fg}');
+        log.add(`{${palette.warning}}⌁ Stopping printer portal...{/}`);
         printerProcess.kill('SIGTERM');
         printerProcess = null;
         printerEnabled = false;
