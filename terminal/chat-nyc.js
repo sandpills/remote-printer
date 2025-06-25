@@ -151,7 +151,7 @@ client.on('message', (topic, message) => {
         process.stdout.write('\x07'); // play bell sound
         log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
         const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 56) : String(msg);
-        console.log('TRIMMED ASCII:\n' + displayAscii); // Debug output
+        // console.log('TRIMMED ASCII:\n' + displayAscii); // Debug output
         log.add(displayAscii);
         screen.render();
         return;
@@ -196,7 +196,7 @@ input.on('submit', (text) => {
     // to take photo
     if (trimmed === '/p') {
         if (!isOnline) {
-            log.add(`{${palette.error}}✖ Cannot send image: friend is offline{/}`);
+            log.add(`{${palette.error}} Cannot send image: friend is offline{/}`);
             screen.render();
             input.clearValue();
             input.focus();
@@ -210,12 +210,13 @@ input.on('submit', (text) => {
         exec(`python3 terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             const now = getTimeString();
             if (err) {
-                log.add(`{${palette.error}}✖ Failed to capture/send image{/}`);
+                log.add(`{${palette.error}}${symbols.cross} Failed to capture/send image{/}`);
                 log.add(stderr);
             } else {
-                log.add(`{${palette.info}}[${now}] ⇢ you: sent an ASCII image{/}`);
+                log.add(`{${palette.info}}[${now}] ${symbols.arrowTo} you: sent an ASCII image{/}`);
                 if (stdout && stdout.trim()) {
-                    log.add(stdout.trim());
+                    const displayAscii = isBasicTerminal ? trimAsciiArt(stdout.trim(), 56) : stdout.trim();
+                    log.add(displayAscii);
                 }
                 log.add(`{${palette.online}}${symbols.check} ASCII image captured and sent{/}`);
             }
