@@ -124,10 +124,10 @@ function getTimeString() {
     return new Date().toLocaleString('en-US', { hour12: true });
 }
 
-function trimAsciiArt(ascii, trim = 2) {
+function trimAsciiArt(ascii, maxWidth = 56) {
     return ascii
         .split('\n')
-        .map(line => line.length > 2 * trim ? line.slice(trim, -trim) : line)
+        .map(line => line.slice(0, maxWidth))
         .join('\n');
 }
 
@@ -150,7 +150,7 @@ client.on('message', (topic, message) => {
     if (topic === ASCII_RECEIEVE) {
         process.stdout.write('\x07'); // play bell sound
         log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
-        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 30) : msg;
+        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 56) : msg;
         log.add(displayAscii);
         screen.render();
         return;
