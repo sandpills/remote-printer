@@ -151,7 +151,6 @@ client.on('message', (topic, message) => {
         process.stdout.write('\x07'); // play bell sound
         log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
         const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 56) : String(msg);
-        // console.log('TRIMMED ASCII:\n' + displayAscii); // Debug output
         log.add(displayAscii);
         screen.render();
         return;
@@ -163,11 +162,12 @@ client.on('message', (topic, message) => {
         process.stdout.write('\x07'); // play bell sound
         const ts = data.time || now;
         const isMe = data.from === MY_NAME;
+        const fromName = data.from || FRIEND_NAME;
         const nameColor = isMe ? palette.self : palette.friend;
-        const arrow = isMe ? symbols.arrowTo + ' you:' : `${symbols.arrowFrom} ${data.from}:`;
+        const arrow = isMe ? symbols.arrowTo + ' you:' : `${symbols.arrowFrom} ${fromName}:`;
         log.add(`{${palette.info}}[${ts}]{/} {${nameColor}}${arrow}{/} ${data.text}`);
     } catch (err) {
-        log.add(`{${palette.error}}✖ Invalid message: ${msg}{/}`);
+        log.add(`{${palette.error}}${symbols.cross} Invalid message: ${msg}{/}`);
     }
 
     screen.render();
@@ -277,7 +277,7 @@ input.on('submit', (text) => {
     };
 
     client.publish(PUB_TOPIC, JSON.stringify(msg));
-    log.add(`{${palette.self}}[${now}] ⇢ you: ${msg.text}{/}`);
+    log.add(`{${palette.self}}[${now}] ${symbols.arrowTo} you: ${msg.text}{/}`);
     input.clearValue();
     input.focus();
     screen.render();

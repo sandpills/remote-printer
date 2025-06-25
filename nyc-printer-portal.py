@@ -16,7 +16,7 @@ from paho.mqtt.client import CallbackAPIVersion
 MY_NAME = 'nyc-boshi'
 FRIEND_NAME = 'shanghai-cedar'
 BROKER = "test.mosquitto.org"
-PRINTER_NAME = 'ITPBigPrinter'
+PRINTER_NAME = 'ITPPrinter'
 
 # Topics
 MESSAGE_TOPIC = f"messages/{MY_NAME}"
