@@ -125,9 +125,9 @@ function getTimeString() {
 }
 
 function trimAsciiArt(ascii, maxWidth = 56) {
-    return ascii
+    return String(ascii)
         .split('\n')
-        .map(line => line.slice(0, maxWidth))
+        .map(line => line.slice(0, maxWidth).replace(/\s+$/, ''))
         .join('\n');
 }
 
@@ -150,7 +150,8 @@ client.on('message', (topic, message) => {
     if (topic === ASCII_RECEIEVE) {
         process.stdout.write('\x07'); // play bell sound
         log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
-        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 56) : msg;
+        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 56) : String(msg);
+        console.log('TRIMMED ASCII:\n' + displayAscii); // Debug output
         log.add(displayAscii);
         screen.render();
         return;
