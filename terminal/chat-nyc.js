@@ -10,7 +10,8 @@ const palette = {
     info: isBasicTerminal ? 'yellow-fg' : 'grey-fg',
     warning: 'magenta-fg',
     error: 'magenta-fg',
-    self: isBasicTerminal ? 'white-fg' : 'cyan-fg'
+    self: 'green-fg',
+    friend: 'blue-fg'
 };
 const symbols = {
     online: isBasicTerminal ? ':)' : '♥︎',
