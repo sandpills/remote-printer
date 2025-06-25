@@ -150,7 +150,7 @@ client.on('message', (topic, message) => {
     if (topic === ASCII_RECEIEVE) {
         process.stdout.write('\x07'); // play bell sound
         log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
-        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 15) : msg;
+        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 30) : msg;
         log.add(displayAscii);
         screen.render();
         return;
