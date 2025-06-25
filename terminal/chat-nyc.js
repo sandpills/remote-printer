@@ -11,7 +11,7 @@ const palette = {
     warning: 'magenta-fg',
     error: 'magenta-fg',
     self: 'green-fg',
-    friend: 'blue-fg'
+    friend: 'yellow-fg'
 };
 const symbols = {
     online: isBasicTerminal ? ':)' : '♥︎',
@@ -116,7 +116,7 @@ client.on('connect', () => {
     heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
     sendHeartbeat(); // send immediately
 
-    const selfStatus = `{${palette.self}}${symbols.online} ${MY_NAME} is online{/}`;
+    const selfStatus = `${symbols.online} ${MY_NAME} is online{/}`;
     log.add(selfStatus);
     screen.render();
 });
@@ -278,7 +278,7 @@ input.on('submit', (text) => {
     };
 
     client.publish(PUB_TOPIC, JSON.stringify(msg));
-    log.add(`{${palette.self}}[${now}] ${symbols.arrowTo} you: ${msg.text}{/}`);
+    log.add(`[${now}] ${symbols.arrowTo} you: ${msg.text}{/}`);
     input.clearValue();
     input.focus();
     screen.render();
