@@ -7,7 +7,7 @@ const isBasicTerminal = ['linux', 'xterm', 'vt100'].includes(process.env.TERM);
 const palette = {
     online: 'green-fg',
     offline: 'magenta-fg',
-    info: isBasicTerminal ? 'yellow-fg' : 'gray-fg',
+    info: isBasicTerminal ? 'yellow-fg' : 'grey-fg',
     warning: 'magenta-fg',
     error: 'magenta-fg',
     self: isBasicTerminal ? 'white-fg' : 'cyan-fg'
@@ -17,7 +17,12 @@ const symbols = {
     offline: isBasicTerminal ? ':(' : '♡',
     printerOn: isBasicTerminal ? '[P]' : '✓',
     printerOff: isBasicTerminal ? '[ ]' : '✘',
-    kaomoji: isBasicTerminal ? 'q(//> w <//)p' : '⸜(｡> ᵕ < )⸝'
+    kaomoji: isBasicTerminal ? '(//> w <//)!' : '⸜(｡> ᵕ < )⸝',
+    arrowTo: isBasicTerminal ? '->' : '⇢',
+    arrowFrom: isBasicTerminal ? '<-' : '⇠',
+    check: isBasicTerminal ? '[OK]' : '✓',
+    cross: isBasicTerminal ? '[X]' : '✖',
+    star: isBasicTerminal ? '*' : '✶'
 };
 
 // ==== CONFIG ====
@@ -150,7 +155,7 @@ client.on('message', (topic, message) => {
         const ts = data.time || now;
         const isMe = data.from === MY_NAME;
         const nameColor = isMe ? palette.self : palette.friend;
-        const arrow = isMe ? '⇢ you:' : `⇠ ${data.from}:`;
+        const arrow = isMe ? symbols.arrowTo + ' you:' : `${symbols.arrowFrom} ${data.from}:`;
         log.add(`{${palette.info}}[${ts}]{/} {${nameColor}}${arrow}{/} ${data.text}`);
     } catch (err) {
         log.add(`{${palette.error}}✖ Invalid message: ${msg}{/}`);
@@ -203,7 +208,7 @@ input.on('submit', (text) => {
                 if (stdout && stdout.trim()) {
                     log.add(stdout.trim());
                 }
-                log.add(`{${palette.online}}✓ ASCII image captured and sent{/}`);
+                log.add(`{${palette.online}}${symbols.check} ASCII image captured and sent{/}`);
             }
             screen.render();
         });
@@ -241,7 +246,7 @@ input.on('submit', (text) => {
 
     // to show help
     if (trimmed === '/help') {
-        log.add(`{${palette.info}}✶ Available Commands:{/}`);
+        log.add(`{${palette.info}}${symbols.star} Available Commands:{/}`);
         log.add(`  /p - Take and send photo`);
         log.add(`  /printer - Toggle printer on/off`);
         log.add(`  /status - Check printer status`);
@@ -292,7 +297,7 @@ function updateStatus(status) {
     const myStatus = isOnline ? symbols.online : symbols.offline;
     const friendStatus = isOnline ? symbols.online : symbols.offline;
     presenceBox.setContent(
-        ` ${friendStatus} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ${myStatus} {bold}${MY_NAME}{/bold} is online    ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`
+        ` ${friendStatus} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}  ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`
     );
     if (isOnline && !wasOnline) {
         process.stdout.write('\x07'); // play bell sound when friend comes online
