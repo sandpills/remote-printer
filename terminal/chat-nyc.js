@@ -11,7 +11,7 @@ const palette = {
     warning: 'magenta-fg',
     error: 'magenta-fg',
     self: 'green-fg',
-    friend: 'yellow-fg'
+    friend: 'bold} {yellow-fg'
 };
 const symbols = {
     online: isBasicTerminal ? ':)' : '♥︎',

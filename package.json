@@ -4,11 +4,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:web": "nodemon web/server.js",
-    "dev:chat": "nodemon terminal/chat-nyc.js",
-    "dev:chat-sh": "nodemon terminal/chat-sh.js",
+    "dev:web": "supervisor web/server.js",
+    "dev:chat": "supervisor terminal/chat-nyc.js",
+    "dev:chat-sh": "supervisor terminal/chat-sh.js",
     "start:web": "node web/server.js",
-    "start:chat": "node terminal/chat-nyc.js"
+    "chat": "node terminal/chat-nyc.js",
+    "chat-sh": "node terminal/chat-sh.js",
+    "auto-pull": "./auto-pull.sh"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,6 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "supervisor": "^0.12.0"
   }
 }
