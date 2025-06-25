@@ -124,6 +124,13 @@ function getTimeString() {
     return new Date().toLocaleString('en-US', { hour12: true });
 }
 
+function trimAsciiArt(ascii, trim = 2) {
+    return ascii
+        .split('\n')
+        .map(line => line.length > 2 * trim ? line.slice(trim, -trim) : line)
+        .join('\n');
+}
+
 client.on('message', (topic, message) => {
     const msg = message.toString();
     const now = getTimeString();
@@ -142,8 +149,9 @@ client.on('message', (topic, message) => {
 
     if (topic === ASCII_RECEIEVE) {
         process.stdout.write('\x07'); // play bell sound
-        log.add(`{${palette.info}}[${now}] ⇠ ${FRIEND_NAME}: sent an ASCII image{/}`);
-        log.add(msg); // ASCII art
+        log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
+        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 15) : msg;
+        log.add(displayAscii);
         screen.render();
         return;
     }
@@ -194,7 +202,7 @@ input.on('submit', (text) => {
             return;
         }
 
-        log.add(`{${palette.warning}}Capturing ASCII image...{/}`);
+        log.add(`{${palette.warning}}Capturing image... hold your pose...{/}`);
         screen.render();
 
         const { exec } = require('child_process');
@@ -290,7 +298,7 @@ function updateStatus(status) {
     const wasOnline = isOnline;
 
     isOnline = status.trim() === 'online';
-    log.setLabel(`q(//> w <//)p chat with ${FRIEND_NAME} `);
+    log.setLabel(`${symbols.kaomoji} chat with ${FRIEND_NAME} `);
 
     const symbol = isOnline ? symbols.online : symbols.offline;
     const printerSymbol = printerEnabled ? symbols.printerOn : symbols.printerOff;
