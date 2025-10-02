@@ -3,6 +3,7 @@ const blessed = require('blessed');
 const { spawn } = require('child_process');
 
 // ==== TERMINAL PALETTE & SYMBOLS ====
+// added for better compatibility in Raspberry Pi terminals, but some colors kinda wonky
 const isBasicTerminal = ['linux', 'xterm', 'vt100'].includes(process.env.TERM);
 const palette = {
     online: 'green-fg',
@@ -27,8 +28,8 @@ const symbols = {
 };
 
 // ==== CONFIG ====
-const MY_NAME = 'nyc-boshi';              // ← your device name
-const FRIEND_NAME = 'shanghai-cedar';     // ← other party
+const MY_NAME = 'nyc-boshi';              // this device name
+const FRIEND_NAME = 'shanghai-cedar';     // other party
 const BROKER_URL = 'mqtt://test.mosquitto.org';
 const SUB_TOPIC = `messages/${MY_NAME}`;
 const PUB_TOPIC = `messages/${FRIEND_NAME}`;
@@ -71,7 +72,7 @@ const log = blessed.log({
     left: 0,
     width: '100%',
     height: '90%',
-    label: '', // ← leave empty initially
+    label: '',
     border: 'line',
     scrollable: true,
     alwaysScroll: true,
@@ -109,7 +110,7 @@ client.on('connect', () => {
         screen.render();
     });
 
-    // Heartbeat presence
+    // presence heartbeat
     function sendHeartbeat() {
         client.publish(MY_PRESENCE_TOPIC, 'online', { retain: true });
     }
@@ -138,7 +139,7 @@ client.on('message', (topic, message) => {
 
     if (topic === PRESENCE_TOPIC) {
         updateStatus(msg.trim());
-        // Heartbeat timeout logic
+        // presence heartbeat timeout
         if (presenceTimeout) clearTimeout(presenceTimeout);
         if (msg.trim() === 'online') {
             presenceTimeout = setTimeout(() => {

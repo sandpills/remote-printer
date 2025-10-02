@@ -1,7 +1,8 @@
+import os
+os.environ['OPENCV_LOG_LEVEL'] = 'ERROR'  # Suppress OpenCV warnings
 import cv2
 from PIL import Image
 import numpy as np
-import os
 from datetime import datetime
 import paho.mqtt.publish as publish
 import sys
@@ -19,38 +20,41 @@ os.makedirs(CAPTURE_DIR, exist_ok=True)
 # ========= FUNCTIONS =========
 
 def capture_image():
-    # Try to use the default camera first
+    print("attempting to access camera...", flush=True)
+    
+    # try to use the default camera first
     cap = cv2.VideoCapture(0)
+    
     if not cap.isOpened():
-        # If default camera fails, try to find any available camera
-        for i in range(10):
+        print("default camera (0) failed, trying others...", flush=True)
+        # if default camera fails, try to find any available camera
+        for i in range(1, 5):  # Try cameras 1-4
+            print(f"trying camera {i}...", flush=True)
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
                 break
         if not cap.isOpened():
-            return False, "No camera available."
+            return False, "No camera available. Check camera permissions."
 
     # Set camera properties for better quality
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # Enable auto exposure
-    cap.set(cv2.CAP_PROP_EXPOSURE, -6)  # Set exposure (adjust this value if needed)
-    cap.set(cv2.CAP_PROP_GAIN, 1.0)  # Set gain
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # enable auto exposure
+    cap.set(cv2.CAP_PROP_EXPOSURE, -6)  # set exposure (adjust this value if needed)
+    cap.set(cv2.CAP_PROP_GAIN, 1.0)  # set gain
 
-    # Read multiple frames to let the camera adjust
-    for _ in range(5):
-        cap.read()
+    print("camera opened!", flush=True)
 
     ret, frame = cap.read()
     cap.release()
 
     if not ret:
-        return False, "Failed to capture image."
+        return False, "Failed to capture image from camera."
 
-    # Apply some basic image processing
+    # apply some basic image processing
     frame = cv2.convertScaleAbs(frame, alpha=1.2, beta=10)  # Increase contrast and brightness
 
-    # Crop to center square for saving
+    # crop to center square for saving
     height, width = frame.shape[:2]
     side = min(height, width)
     start_x = (width - side) // 2
@@ -162,6 +166,6 @@ if __name__ == '__main__':
     
     # Status messages to stderr so they don't interfere with ASCII display
     print(f"\n✓ Dual image sent:", file=sys.stderr)
-    print(f"  📺 ASCII to: ascii/{RECIPIENT}", file=sys.stderr)
-    print(f"  🖨️ Image to: images/{RECIPIENT} ({base64_size} bytes)", file=sys.stderr)
-    print(f"✓ Saved locally: {ascii_path}", file=sys.stderr)
+    print(f"  ASCII to: ascii/{RECIPIENT}", file=sys.stderr)
+    print(f"  Image to: images/{RECIPIENT} ({base64_size} bytes)", file=sys.stderr)
+    print(f"  Saved locally: {ascii_path}", file=sys.stderr)

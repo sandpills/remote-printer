@@ -2,8 +2,8 @@ const mqtt = require('mqtt');
 const blessed = require('blessed');
 
 // ==== CONFIG ====
-const MY_NAME = 'shanghai-cedar';              // ← your device name
-const FRIEND_NAME = 'nyc-boshi';     // ← other party
+const MY_NAME = 'shanghai-cedar';    // this device name
+const FRIEND_NAME = 'nyc-boshi';     // other party
 const BROKER_URL = 'mqtt://test.mosquitto.org';
 const SUB_TOPIC = `messages/${MY_NAME}`;
 const PUB_TOPIC = `messages/${FRIEND_NAME}`;
@@ -42,7 +42,7 @@ const log = blessed.log({
     left: 0,
     width: '100%',
     height: '90%',
-    label: '', // ← leave empty initially
+    label: '',
     border: 'line',
     scrollable: true,
     alwaysScroll: true,
@@ -58,7 +58,7 @@ const input = blessed.textbox({
     height: 3,
     width: '100%',
     border: 'line',
-    label: ' Type your message | Send "/p" to take photo ',
+    label: ' Type message to send | /p: take photo | /help: help ',
     inputOnFocus: true,
     style: {
         focus: { border: { fg: 'yellow' } },
@@ -80,7 +80,7 @@ client.on('connect', () => {
         screen.render();
     });
 
-    // Heartbeat presence
+    // presence heartbeat
     function sendHeartbeat() {
         client.publish(MY_PRESENCE_TOPIC, 'online', { retain: true });
     }
@@ -102,7 +102,7 @@ client.on('message', (topic, message) => {
 
     if (topic === PRESENCE_TOPIC) {
         updateStatus(msg.trim());
-        // Heartbeat timeout logic
+        // presence heartbeat timeout
         if (presenceTimeout) clearTimeout(presenceTimeout);
         if (msg.trim() === 'online') {
             presenceTimeout = setTimeout(() => {
@@ -146,7 +146,7 @@ input.on('submit', (text) => {
     const trimmed = text.trim().toLowerCase();
 
     // to quit
-    if (trimmed === 'exit') {
+    if (trimmed === '/exit') {
         clearInterval(heartbeatTimer);
         client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
             client.end();
@@ -165,7 +165,7 @@ input.on('submit', (text) => {
             return;
         }
 
-        log.add('{yellow-fg}Capturing ASCII image...{/yellow-fg}');
+        log.add(`{yellow-fg}Capturing image... hold your pose...{/yellow-fg}`);
         screen.render();
 
         const { exec } = require('child_process');
@@ -184,6 +184,21 @@ input.on('submit', (text) => {
             screen.render();
         });
 
+        input.clearValue();
+        input.focus();
+        return;
+    }
+
+
+    // to show help
+    if (trimmed === '/help') {
+        log.add(`{${palette.info}}${symbols.star} Available Commands:{/}`);
+        log.add(`  /p - Take and send photo`);
+        // log.add(`  /printer - Toggle printer on/off`);
+        // log.add(`  /status - Check printer status`); -- printer not deployed yet
+        log.add(`  /help - Show this help message`);
+        log.add(`  /exit - Quit the application`);
+        screen.render();
         input.clearValue();
         input.focus();
         return;
