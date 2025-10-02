@@ -2,9 +2,8 @@
 
 A slower-internet, long-distance, terminal-based messaging system
 
-Currently 2 seperate builds >.<
-- /terminal is the perferred version
-- /web has a webUI and uses a socket.io server instead of MQTT, made just for testing
+- /terminal is the preferred version
+- /web has a webUI and uses a socket.io server instead of MQTT, made just for testing (not maintained)
 
 
 ## Requirements
@@ -12,7 +11,7 @@ Currently 2 seperate builds >.<
 - Python 3
 - Webcam (USB or built-in)
 - Terminal-friendly computer
-- (Yet to be deployed: thermal printer, Raspberry Pi)
+- Note: If deploy on a Raspberry Pi, the Pi needs to support Node.js
 
 ## Installation
 
@@ -38,5 +37,5 @@ node terminal/chat-sh.js
 ```
 
 - Type to chat, enter to send
-- Type and send "exit" to quit
+- Type and send "/exit" to quit
 - Type and send "/p" to capture an image and send over to the other side as ASCII (only available when both are online)
