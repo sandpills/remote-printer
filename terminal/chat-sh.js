@@ -1,5 +1,31 @@
 const mqtt = require('mqtt');
 const blessed = require('blessed');
+const { spawn } = require('child_process');
+
+// ==== TERMINAL PALETTE & SYMBOLS ====
+// added for better compatibility in Raspberry Pi terminals, but some colors kinda wonky
+const isBasicTerminal = ['linux', 'xterm', 'vt100'].includes(process.env.TERM);
+const palette = {
+    online: 'green-fg',
+    offline: 'magenta-fg',
+    info: isBasicTerminal ? 'yellow-fg' : 'grey-fg',
+    warning: 'magenta-fg',
+    error: 'magenta-fg',
+    self: 'green-fg',
+    friend: 'bold} {cyan-fg'
+};
+const symbols = {
+    online: isBasicTerminal ? ':)' : '♥︎',
+    offline: isBasicTerminal ? ':(' : '♡',
+    printerOn: isBasicTerminal ? '[P]' : '✓',
+    printerOff: isBasicTerminal ? '[ ]' : '✘',
+    kaomoji: isBasicTerminal ? '(//> w <//)!' : '⸜(｡˃ ᵕ ˂ )⸝',
+    arrowTo: isBasicTerminal ? '->' : '⇢',
+    arrowFrom: isBasicTerminal ? '<-' : '⇠',
+    check: isBasicTerminal ? '[OK]' : '✓',
+    cross: isBasicTerminal ? '[X]' : '✖',
+    star: isBasicTerminal ? '*' : '✶'
+};
 
 // ==== CONFIG ====
 const MY_NAME = 'shanghai-cedar';    // this device name
@@ -15,6 +41,10 @@ const HEARTBEAT_INTERVAL = 5000; // 5 seconds
 const PRESENCE_TIMEOUT = 10000; // 10 seconds
 let heartbeatTimer = null;
 let presenceTimeout = null;
+
+// ==== PRINTER STATE ====
+let printerEnabled = false;
+let printerProcess = null;
 
 // ==== UI SETUP ====
 const screen = blessed.screen({
@@ -75,7 +105,7 @@ screen.render();
 const client = mqtt.connect(BROKER_URL);
 
 client.on('connect', () => {
-    log.add('{green-fg}✓ Connected to MQTT{/green-fg}');
+    log.add('{green-fg}✓ Connected to MQTT{/}');
     client.subscribe([SUB_TOPIC, PRESENCE_TOPIC, ASCII_RECEIEVE], () => {
         screen.render();
     });
@@ -87,13 +117,20 @@ client.on('connect', () => {
     heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
     sendHeartbeat(); // send immediately
 
-    const selfStatus = `♥︎ ${MY_NAME} is online`;
+    const selfStatus = `${symbols.online} ${MY_NAME} is online{/}`;
     log.add(selfStatus);
     screen.render();
 });
 
 function getTimeString() {
     return new Date().toLocaleString('en-US', { hour12: true });
+}
+
+function trimAsciiArt(ascii, maxWidth = 56) {
+    return String(ascii)
+        .split('\n')
+        .map(line => line.slice(0, maxWidth).replace(/\s+$/, ''))
+        .join('\n');
 }
 
 client.on('message', (topic, message) => {
@@ -114,8 +151,9 @@ client.on('message', (topic, message) => {
 
     if (topic === ASCII_RECEIEVE) {
         process.stdout.write('\x07'); // play bell sound
-        log.add(`{gray-fg}[${now}]{/gray-fg} {cyan-fg}⇠ ${FRIEND_NAME}:{/cyan-fg} sent an ASCII image`);
-        log.add(msg); // ASCII art
+        log.add(`{${palette.info}}[${now}] ${symbols.arrowFrom} ${FRIEND_NAME}: sent an ASCII image{/}`);
+        const displayAscii = isBasicTerminal ? trimAsciiArt(msg, 56) : String(msg);
+        log.add(displayAscii);
         screen.render();
         return;
     }
@@ -126,18 +164,19 @@ client.on('message', (topic, message) => {
         process.stdout.write('\x07'); // play bell sound
         const ts = data.time || now;
         const isMe = data.from === MY_NAME;
-        const nameColor = isMe ? 'green-fg' : 'cyan-fg';
-        const arrow = isMe ? '⇢ you:' : `⇠ ${data.from}:`;
-        log.add(`{gray-fg}[${ts}]{/gray-fg} {${nameColor}}${arrow}{/${nameColor}} ${data.text}`);
+        const fromName = data.from || FRIEND_NAME;
+        const nameColor = isMe ? palette.self : palette.friend;
+        const arrow = isMe ? symbols.arrowTo + ' you:' : `${symbols.arrowFrom} ${fromName}:`;
+        log.add(`{${palette.info}}[${ts}]{/} {${nameColor}}${arrow}{/} ${data.text}`);
     } catch (err) {
-        log.add(`{red-fg}✖ Invalid message:{/red-fg} ${msg}`);
+        log.add(`{${palette.error}}${symbols.cross} Invalid message: ${msg}{/}`);
     }
 
     screen.render();
 });
 
 client.on('error', (err) => {
-    log.add(`{red-fg}✖ MQTT error:{/red-fg} ${err.message}`);
+    log.add(`{${palette.error}}✖ MQTT error: ${err.message}{/}`);
     screen.render();
 });
 
@@ -147,6 +186,7 @@ input.on('submit', (text) => {
 
     // to quit
     if (trimmed === '/exit') {
+        cleanupPrinter();
         clearInterval(heartbeatTimer);
         client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
             client.end();
@@ -158,28 +198,29 @@ input.on('submit', (text) => {
     // to take photo
     if (trimmed === '/p') {
         if (!isOnline) {
-            log.add('{red-fg}✖ Cannot send image: friend is offline{/red-fg}');
+            log.add(`{${palette.error}} Cannot send image: friend is offline{/}`);
             screen.render();
             input.clearValue();
             input.focus();
             return;
         }
 
-        log.add(`{yellow-fg}Capturing image... hold your pose...{/yellow-fg}`);
+        log.add(`{${palette.warning}}Capturing image... hold your pose...{/}`);
         screen.render();
 
         const { exec } = require('child_process');
         exec(`python3 terminal/ascii-cam-sender.py ${MY_NAME} ${FRIEND_NAME}`, (err, stdout, stderr) => {
             const now = getTimeString();
             if (err) {
-                log.add(`{red-fg}✖ Failed to capture/send image{/red-fg}`);
+                log.add(`{${palette.error}}${symbols.cross} Failed to capture/send image{/}`);
                 log.add(stderr);
             } else {
-                log.add(`{gray-fg}[${now}]{/gray-fg} {green-fg}⇢ you:{/green-fg} sent an ASCII image`);
+                log.add(`{${palette.info}}[${now}] ${symbols.arrowTo} you: sent an ASCII image{/}`);
                 if (stdout && stdout.trim()) {
-                    log.add(stdout.trim());
+                    const displayAscii = isBasicTerminal ? trimAsciiArt(stdout.trim(), 56) : stdout.trim();
+                    log.add(displayAscii);
                 }
-                log.add('{green-fg}✓ ASCII image captured and sent{/green-fg}');
+                log.add(`{${palette.online}}${symbols.check} ASCII image captured and sent{/}`);
             }
             screen.render();
         });
@@ -189,13 +230,38 @@ input.on('submit', (text) => {
         return;
     }
 
+    // to toggle printer
+    if (trimmed === '/printer') {
+        if (printerProcess) {
+            // If portal is running, stop it
+            cleanupPrinter();
+            printerEnabled = false;
+        } else {
+            // If portal is not running, start it
+            startPrinterPortal();
+            printerEnabled = true;
+        }
+        input.clearValue();
+        input.focus();
+        return;
+    }
+
+    // to check printer status
+    if (trimmed === '/status') {
+        const printerStatus = printerEnabled ? 'on' : 'off';
+        log.add(`{${palette.info}}✶ Printer status: ${printerStatus}{/}`);
+        screen.render();
+        input.clearValue();
+        input.focus();
+        return;
+    }
 
     // to show help
     if (trimmed === '/help') {
         log.add(`{${palette.info}}${symbols.star} Available Commands:{/}`);
         log.add(`  /p - Take and send photo`);
-        // log.add(`  /printer - Toggle printer on/off`);
-        // log.add(`  /status - Check printer status`); -- printer not deployed yet
+        log.add(`  /printer - Toggle printer on/off`);
+        log.add(`  /status - Check printer status`);
         log.add(`  /help - Show this help message`);
         log.add(`  /exit - Quit the application`);
         screen.render();
@@ -221,6 +287,7 @@ input.on('submit', (text) => {
 
 // ==== QUIT ==== -- this doesn't work
 screen.key(['q', 'C-c'], () => {
+    cleanupPrinter();
     clearInterval(heartbeatTimer);
     client.publish(MY_PRESENCE_TOPIC, 'offline', { retain: true, qos: 1 }, () => {
         client.end();
@@ -235,12 +302,81 @@ function updateStatus(status) {
     const wasOnline = isOnline;
 
     isOnline = status.trim() === 'online';
-    log.setLabel(` ⸜(｡˃ ᵕ ˂ )⸝ chat with ${FRIEND_NAME} `);
+    log.setLabel(`${symbols.kaomoji} chat with ${FRIEND_NAME} `);
 
-    const symbol = isOnline ? '♥︎' : '♡';
-    presenceBox.setContent(` ${symbol} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}    ♥︎ {bold}${MY_NAME}{/bold} is online`);
+    const symbol = isOnline ? symbols.online : symbols.offline;
+    const printerSymbol = printerEnabled ? symbols.printerOn : symbols.printerOff;
+    const myStatus = isOnline ? symbols.online : symbols.offline;
+    const friendStatus = isOnline ? symbols.online : symbols.offline;
+    presenceBox.setContent(
+        ` ${friendStatus} {bold}${FRIEND_NAME}{/bold} is ${isOnline ? 'online' : 'offline'}  ${printerSymbol} printer ${printerEnabled ? 'on' : 'off'}`
+    );
     if (isOnline && !wasOnline) {
         process.stdout.write('\x07'); // play bell sound when friend comes online
     }
     screen.render(); // force full UI redraw
+}
+
+// ==== PRINTER FUNCTIONS ====
+function startPrinterPortal() {
+    if (printerProcess) {
+        log.add(`{${palette.error}}✖ Printer portal already running{/}`);
+        screen.render();
+        return;
+    }
+
+    log.add(`{${palette.warning}}⇣ Starting printer portal...{/}`);
+    screen.render();
+
+    // Start the printer portal as a background process
+    printerProcess = spawn('python3', ['shanghai-printer-portal.py'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        detached: false
+    });
+
+    printerProcess.stdout.on('data', (data) => {
+        const output = data.toString().trim();
+        if (output) {
+            log.add(`{${palette.info}}[Printer] ${output}{/}`);
+            screen.render();
+        }
+    });
+
+    printerProcess.stderr.on('data', (data) => {
+        const error = data.toString().trim();
+        if (error) {
+            log.add(`{${palette.error}}[Printer Error] ${error}{/}`);
+            screen.render();
+        }
+    });
+
+    printerProcess.on('close', (code) => {
+        log.add(`{${palette.warning}}⇣ Printer portal stopped (code: ${code}){/}`);
+        printerProcess = null;
+        printerEnabled = false;
+        updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+        screen.render();
+    });
+
+    printerProcess.on('error', (err) => {
+        log.add(`{${palette.error}}✖ Printer portal error: ${err.message}{/}`);
+        printerProcess = null;
+        printerEnabled = false;
+        updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+        screen.render();
+    });
+
+    // Set printer as enabled when portal starts
+    printerEnabled = true;
+    updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+}
+
+function cleanupPrinter() {
+    if (printerProcess) {
+        log.add(`{${palette.warning}}⌁ Stopping printer portal...{/}`);
+        printerProcess.kill('SIGTERM');
+        printerProcess = null;
+        printerEnabled = false;
+        updateStatus(isOnline ? 'online' : 'offline'); // refresh display
+    }
 }
