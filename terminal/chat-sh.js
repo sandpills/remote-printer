@@ -8,7 +8,7 @@ const isBasicTerminal = ['linux', 'xterm', 'vt100'].includes(process.env.TERM);
 const palette = {
     online: 'green-fg',
     offline: 'magenta-fg',
-    info: isBasicTerminal ? 'yellow-fg' : 'grey-fg',
+    info: isBasicTerminal ? 'yellow-fg' : 'gray-fg',
     warning: 'magenta-fg',
     error: 'magenta-fg',
     self: 'green-fg',
@@ -279,7 +279,7 @@ input.on('submit', (text) => {
     };
 
     client.publish(PUB_TOPIC, JSON.stringify(msg));
-    log.add(`{gray-fg}[${now}]{/gray-fg} {green-fg}⇢ you:{/green-fg} ${msg.text}`);
+    log.add(`{${palette.info}}[${now}] ${symbols.arrowTo} you:{/} ${msg.text}`);
     input.clearValue();
     input.focus();
     screen.render();
